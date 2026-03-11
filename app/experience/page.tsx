@@ -103,9 +103,9 @@ export default function ExperiencePage() {
   return (
     <div className="min-h-screen">
       {/* Page header */}
-      <div className="border-b border-gray-200 bg-white px-8 py-6">
+      <div className="border-b border-gray-200 bg-white px-4 sm:px-8 py-6">
         <div className="max-w-5xl">
-          <h1 className="text-2xl font-bold text-gray-900">Experience &amp; Resumes</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Experience &amp; Resumes</h1>
           <p className="text-sm text-gray-500 mt-1">
             Manage your resume profiles. Each slot stores a resume variant that can be selected
             from any role page during generation. Label, tag, and organize them by role or specialization.
@@ -113,7 +113,7 @@ export default function ExperiencePage() {
         </div>
       </div>
 
-      <div className="px-8 py-6 max-w-5xl space-y-6">
+      <div className="px-4 sm:px-8 py-6 max-w-5xl space-y-6">
         {/* Slot cards */}
         {slots.map((slot) => (
           <div
@@ -121,7 +121,7 @@ export default function ExperiencePage() {
             className="bg-white rounded-xl border border-gray-200 p-6 space-y-4"
           >
             {/* Row 1: label + role hint + specialization */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div>
                 <label className="block text-xs font-semibold text-gray-600 mb-1">Label *</label>
                 <input

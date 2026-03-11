@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useState, useEffect } from "react";
 import { ROLES } from "@/lib/roles";
 
 const MAIN_NAV = [
@@ -12,6 +13,19 @@ const MAIN_NAV = [
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const [open, setOpen] = useState(false);
+
+  // Close drawer on route change
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname]);
+
+  // Prevent body scroll when drawer is open
+  useEffect(() => {
+    if (open) document.body.style.overflow = "hidden";
+    else document.body.style.overflow = "";
+    return () => { document.body.style.overflow = ""; };
+  }, [open]);
 
   const isActive = (href: string) =>
     href === "/" ? pathname === "/" : pathname.startsWith(href);
@@ -23,12 +37,24 @@ export default function Sidebar() {
         : "text-slate-300 hover:bg-slate-800 hover:text-white"
     }`;
 
-  return (
-    <aside className="fixed left-0 top-0 bottom-0 w-64 bg-slate-900 text-white flex flex-col z-40">
+  const nav = (
+    <>
       {/* Brand */}
-      <div className="px-6 py-5 border-b border-slate-700/50">
-        <h1 className="text-lg font-bold tracking-tight">ATS Resume Tailor</h1>
-        <p className="text-xs text-slate-400 mt-0.5">AI-powered resume optimization</p>
+      <div className="px-6 py-5 border-b border-slate-700/50 flex items-center justify-between">
+        <div>
+          <h1 className="text-lg font-bold tracking-tight">ATS Resume Tailor</h1>
+          <p className="text-xs text-slate-400 mt-0.5">AI-powered resume optimization</p>
+        </div>
+        {/* Close button — mobile only */}
+        <button
+          onClick={() => setOpen(false)}
+          className="lg:hidden text-slate-400 hover:text-white p-1 cursor-pointer"
+          aria-label="Close menu"
+        >
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
       </div>
 
       {/* Navigation */}
@@ -72,6 +98,37 @@ export default function Sidebar() {
       <div className="px-6 py-3 border-t border-slate-700/50">
         <p className="text-[10px] text-slate-500">v0.1.0</p>
       </div>
-    </aside>
+    </>
+  );
+
+  return (
+    <>
+      {/* Hamburger button — visible on mobile only */}
+      <button
+        onClick={() => setOpen(true)}
+        className="fixed top-4 left-4 z-50 lg:hidden bg-slate-900 text-white p-2 rounded-lg shadow-lg cursor-pointer"
+        aria-label="Open menu"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Overlay — mobile only */}
+      {open && (
+        <div
+          className="fixed inset-0 bg-black/50 z-40 lg:hidden"
+          onClick={() => setOpen(false)}
+        />
+      )}
+
+      {/* Sidebar — always visible on lg+, drawer on mobile */}
+      <aside
+        className={`fixed left-0 top-0 bottom-0 w-64 bg-slate-900 text-white flex flex-col z-50 transition-transform duration-200 ease-in-out
+          ${open ? "translate-x-0" : "-translate-x-full"} lg:translate-x-0`}
+      >
+        {nav}
+      </aside>
+    </>
   );
 }

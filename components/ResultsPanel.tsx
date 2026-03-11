@@ -76,18 +76,18 @@ export default function ResultsPanel({ result }: Props) {
   return (
     <div className="space-y-6">
       {/* Quick summary bar */}
-      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl shadow-md p-5 flex flex-wrap gap-4 items-center">
-        <div className="flex-1 min-w-[200px]">
-          <p className="text-sm text-gray-500">Detected JD Title</p>
-          <p className="text-base font-bold text-gray-900">{result.parsedJD.title}</p>
+      <div className="bg-gradient-to-r from-green-50 to-blue-50 rounded-2xl shadow-md p-4 sm:p-5 grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div>
+          <p className="text-xs sm:text-sm text-gray-500">Detected JD Title</p>
+          <p className="text-sm sm:text-base font-bold text-gray-900">{result.parsedJD.title}</p>
         </div>
-        <div className="flex-1 min-w-[150px]">
-          <p className="text-sm text-gray-500">Location</p>
-          <p className="text-base font-semibold text-gray-800">{result.parsedJD.location}</p>
+        <div>
+          <p className="text-xs sm:text-sm text-gray-500">Location</p>
+          <p className="text-sm sm:text-base font-semibold text-gray-800">{result.parsedJD.location}</p>
         </div>
-        <div className="flex-1 min-w-[130px]">
-          <p className="text-sm text-gray-500">Selected Master</p>
-          <span className={`inline-block text-sm font-bold px-3 py-1 rounded-full ${
+        <div>
+          <p className="text-xs sm:text-sm text-gray-500">Selected Master</p>
+          <span className={`inline-block text-xs sm:text-sm font-bold px-3 py-1 rounded-full ${
             result.selectedMaster === "aws"
               ? "bg-orange-100 text-orange-800"
               : "bg-blue-100 text-blue-800"
@@ -95,9 +95,9 @@ export default function ResultsPanel({ result }: Props) {
             {result.selectedMaster.toUpperCase()}
           </span>
         </div>
-        <div className="flex-1 min-w-[100px]">
-          <p className="text-sm text-gray-500">ATS Score</p>
-          <p className="text-2xl font-bold text-blue-700">{result.report.atsScore}/10</p>
+        <div>
+          <p className="text-xs sm:text-sm text-gray-500">ATS Score</p>
+          <p className="text-xl sm:text-2xl font-bold text-blue-700">{result.report.atsScore}/10</p>
         </div>
       </div>
 

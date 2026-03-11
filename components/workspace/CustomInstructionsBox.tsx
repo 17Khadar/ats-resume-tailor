@@ -45,7 +45,7 @@ export default function CustomInstructionsBox({
         }`}
       />
 
-      <div className="flex items-center justify-between mt-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mt-2">
         <div>
           {submitted && (
             <p className="text-xs text-green-600 font-medium">

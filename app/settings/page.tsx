@@ -65,10 +65,10 @@ export default function SettingsPage() {
   return (
     <div className="min-h-screen">
       {/* Page header */}
-      <div className="border-b border-gray-200 bg-white px-8 py-6">
-        <div className="flex items-center justify-between max-w-4xl">
+      <div className="border-b border-gray-200 bg-white px-4 sm:px-8 py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 max-w-4xl">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
+            <h1 className="text-xl sm:text-2xl font-bold text-gray-900">Settings</h1>
             <p className="text-sm text-gray-500 mt-1">
               Configure your credentials and personal information. These values persist across sessions.
             </p>
@@ -76,7 +76,7 @@ export default function SettingsPage() {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-blue-600 text-white px-5 py-2 rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed w-full sm:w-auto"
           >
             {saving ? "Saving..." : "Save Changes"}
           </button>
@@ -85,7 +85,7 @@ export default function SettingsPage() {
 
       {/* Success toast */}
       {saved && (
-        <div className="mx-8 mt-4 max-w-4xl">
+        <div className="mx-4 sm:mx-8 mt-4 max-w-4xl">
           <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
             {serverOnline === false
               ? "Settings saved to browser storage."
@@ -94,7 +94,7 @@ export default function SettingsPage() {
         </div>
       )}
 
-      <div className="px-8 py-6 space-y-6 max-w-4xl">
+      <div className="px-4 sm:px-8 py-6 space-y-6 max-w-4xl">
         {/* API Configuration */}
         <section className="bg-white rounded-xl border border-gray-200 p-6">
           <h2 className="text-lg font-semibold text-gray-900 mb-1">API Configuration</h2>

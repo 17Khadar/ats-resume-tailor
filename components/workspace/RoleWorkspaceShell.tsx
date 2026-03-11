@@ -196,12 +196,12 @@ export default function RoleWorkspaceShell({ role }: Props) {
     <div className="min-h-screen flex flex-col">
       <main className="flex-1 w-full">
         {/* ── Role header ── */}
-        <div className="border-b border-gray-200 bg-white px-8 py-6">
+        <div className="border-b border-gray-200 bg-white px-4 sm:px-8 py-6">
           <div className="max-w-5xl">
             <div className="flex items-center gap-3">
-              <span className="text-3xl">{role.icon}</span>
+              <span className="text-2xl sm:text-3xl">{role.icon}</span>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">{role.label}</h1>
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{role.label}</h1>
                 <p className="text-sm text-gray-500 mt-0.5">{role.description}</p>
               </div>
             </div>

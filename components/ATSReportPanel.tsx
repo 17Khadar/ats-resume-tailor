@@ -31,13 +31,13 @@ export default function ATSReportPanel({ report }: Props) {
       <h2 className="text-lg font-bold text-gray-900">ATS Strategy Report</h2>
 
       {/* Overall score */}
-      <div className="flex items-center gap-4">
-        <div className="text-4xl font-bold text-blue-700">{report.atsScore}</div>
+      <div className="flex flex-wrap items-center gap-3 sm:gap-4">
+        <div className="text-3xl sm:text-4xl font-bold text-blue-700">{report.atsScore}</div>
         <div>
           <p className="text-sm text-gray-500">out of {rb.maxTotal}</p>
           <p className="text-sm font-medium text-gray-700">ATS Match Score</p>
         </div>
-        <div className="ml-auto">
+        <div className="sm:ml-auto">
           <span className={`text-sm font-semibold px-3 py-1 rounded-full ${
             report.atsScore >= 8 ? "bg-green-100 text-green-800" :
             report.atsScore >= 5 ? "bg-yellow-100 text-yellow-800" :
