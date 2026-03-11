@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import { usePersistedSettings } from "@/hooks/usePersistedSettings";
 import * as api from "@/lib/apiClient";
+import { IS_LOCAL_ONLY } from "@/lib/endpoints";
 
 export default function SettingsPage() {
   const {
@@ -17,12 +18,11 @@ export default function SettingsPage() {
 
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [syncError, setSyncError] = useState<string | null>(null);
   const [serverOnline, setServerOnline] = useState<boolean | null>(null);
 
-  // Load settings from server on mount
+  // Try loading settings from backend on mount (skip if no backend configured)
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || IS_LOCAL_ONLY) return;
     api.getSettings().then((data) => {
       setServerOnline(true);
       if (data.openaiApiKey) setOpenaiApiKey(data.openaiApiKey);
@@ -33,28 +33,22 @@ export default function SettingsPage() {
     });
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Save to server + show confirmation
+  // Save — always succeeds via localStorage; server sync is best-effort
   const handleSave = async () => {
     setSaving(true);
-    setSyncError(null);
-    try {
-      await api.saveSettings({
-        openaiApiKey,
-        contact,
-        smtp,
-      });
-      setServerOnline(true);
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch {
-      setServerOnline(false);
-      setSyncError(
-        "Cannot reach the backend server (http://localhost:4000). " +
-        "Make sure it is running: cd ats-resume-server && npx tsx src/server.ts"
-      );
-    } finally {
-      setSaving(false);
+    // Zustand already persists to localStorage on every set call,
+    // so the save is effectively done. Try server sync as a bonus.
+    if (!IS_LOCAL_ONLY) {
+      try {
+        await api.saveSettings({ openaiApiKey, contact, smtp });
+        setServerOnline(true);
+      } catch {
+        setServerOnline(false);
+      }
     }
+    setSaved(true);
+    setTimeout(() => setSaved(false), 3000);
+    setSaving(false);
   };
 
   const inputClass =
@@ -89,35 +83,13 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Server status */}
-      {serverOnline === false && !syncError && (
-        <div className="mx-8 mt-4 max-w-4xl">
-          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
-            Backend server is offline. Settings are saved locally and will sync when the server is available.
-          </div>
-        </div>
-      )}
-
       {/* Success toast */}
       {saved && (
         <div className="mx-8 mt-4 max-w-4xl">
           <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg text-sm">
-            Settings saved successfully.
-          </div>
-        </div>
-      )}
-
-      {/* Sync error */}
-      {syncError && (
-        <div className="mx-8 mt-4 max-w-4xl">
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
-            <span>{syncError}</span>
-            <button
-              onClick={() => setSyncError(null)}
-              className="ml-4 text-red-600 hover:text-red-800 font-medium text-xs cursor-pointer"
-            >
-              Dismiss
-            </button>
+            {serverOnline === false
+              ? "Settings saved to browser storage."
+              : "Settings saved successfully."}
           </div>
         </div>
       )}
