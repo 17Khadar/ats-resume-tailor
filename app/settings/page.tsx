@@ -18,16 +18,18 @@ export default function SettingsPage() {
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [serverOnline, setServerOnline] = useState<boolean | null>(null);
 
   // Load settings from server on mount
   useEffect(() => {
     if (!hydrated) return;
     api.getSettings().then((data) => {
+      setServerOnline(true);
       if (data.openaiApiKey) setOpenaiApiKey(data.openaiApiKey);
       if (data.contact) setContact(data.contact);
       if (data.smtp) setSmtp(data.smtp);
     }).catch(() => {
-      // Server unavailable — continue with local state
+      setServerOnline(false);
     });
   }, [hydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -41,10 +43,15 @@ export default function SettingsPage() {
         contact,
         smtp,
       });
+      setServerOnline(true);
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      setSyncError(err instanceof Error ? err.message : "Failed to save settings to server.");
+    } catch {
+      setServerOnline(false);
+      setSyncError(
+        "Cannot reach the backend server (http://localhost:4000). " +
+        "Make sure it is running: cd ats-resume-server && npx tsx src/server.ts"
+      );
     } finally {
       setSaving(false);
     }
@@ -82,6 +89,15 @@ export default function SettingsPage() {
         </div>
       </div>
 
+      {/* Server status */}
+      {serverOnline === false && !syncError && (
+        <div className="mx-8 mt-4 max-w-4xl">
+          <div className="bg-amber-50 border border-amber-200 text-amber-800 px-4 py-3 rounded-lg text-sm">
+            Backend server is offline. Settings are saved locally and will sync when the server is available.
+          </div>
+        </div>
+      )}
+
       {/* Success toast */}
       {saved && (
         <div className="mx-8 mt-4 max-w-4xl">
@@ -94,8 +110,14 @@ export default function SettingsPage() {
       {/* Sync error */}
       {syncError && (
         <div className="mx-8 mt-4 max-w-4xl">
-          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm">
-            {syncError}
+          <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm flex items-center justify-between">
+            <span>{syncError}</span>
+            <button
+              onClick={() => setSyncError(null)}
+              className="ml-4 text-red-600 hover:text-red-800 font-medium text-xs cursor-pointer"
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       )}
