@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { resolveJdInput } from "@/lib/jdFetcher";
 import { parseJD } from "@/lib/jdParser";
 import { detectCloudDominance } from "@/lib/cloudDetector";
-import { extractResumeFromDocx } from "@/lib/resumeExtractor";
+import { extractResumeFromDocx, mergeContactInfo } from "@/lib/resumeExtractor";
 import { tailorResume, boostResumeScore } from "@/lib/resumeTailor";
 import { generateATSReport } from "@/lib/atsScorer";
 import { aiTailorResume, aiBoostResume, isAIEnabled } from "@/lib/openaiClient";
@@ -25,6 +25,7 @@ export async function POST(request: NextRequest) {
     const awsFile = formData.get("awsMaster") as File | null;
     const azureFile = formData.get("azureMaster") as File | null;
     const customInstructions = (formData.get("customInstructions") as string | null)?.trim() || undefined;
+    const contactOverrideRaw = formData.get("contactOverride") as string | null;
 
     // Validate at least one input
     if (!jobId?.trim() && !companyName?.trim() && !jdUrl?.trim() && !jdText?.trim()) {
@@ -198,6 +199,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Merge extracted contact info with user-configured overrides from Settings
+    let finalContactInfo = masterResume.contactInfo;
+    if (contactOverrideRaw) {
+      try {
+        const override = JSON.parse(contactOverrideRaw);
+        finalContactInfo = mergeContactInfo(masterResume.contactInfo, override);
+      } catch { /* ignore malformed JSON */ }
+    }
+
     const response: TailorResumeResponse = {
       success: true,
       parsedJD,
@@ -205,7 +215,7 @@ export async function POST(request: NextRequest) {
       cloudDetection,
       resume,
       report,
-      contactInfo: masterResume.contactInfo,
+      contactInfo: finalContactInfo,
     };
 
     return NextResponse.json(response);

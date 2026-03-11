@@ -138,6 +138,11 @@ export default function RoleWorkspaceShell({ role }: Props) {
         if (instructionsSubmitted && instructionsDraft.trim()) {
           formData.append("customInstructions", instructionsDraft.trim());
         }
+        // Send user-configured contact info so the API can merge with extracted values
+        const settingsContact = globalSettings.contact;
+        if (settingsContact && Object.values(settingsContact).some((v) => v?.trim())) {
+          formData.append("contactOverride", JSON.stringify(settingsContact));
+        }
         formData.append(isAzure ? "azureMaster" : "awsMaster", file);
 
         setProgressStep("tailoring" as ProgressStep);

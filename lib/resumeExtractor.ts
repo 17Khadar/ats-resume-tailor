@@ -14,7 +14,7 @@ export async function extractResumeFromDocx(buffer: Buffer): Promise<ExtractedMa
   const rawText = result.value;
 
   const sections = splitIntoSections(rawText);
-  const contactInfo = extractContactInfo();
+  const contactInfo = extractContactInfo(rawText);
 
   return { rawText, contactInfo, sections };
 }
@@ -102,14 +102,129 @@ function splitIntoSections(text: string): ExtractedMasterResume["sections"] {
 }
 
 /**
- * Fixed contact header — used consistently on every generated resume.
+ * Parse contact/identity information from the resume header area.
+ *
+ * Strategy: The header is the text before the first recognised section
+ * heading (SUMMARY, SKILLS, EXPERIENCE, EDUCATION). We scan those
+ * lines for common patterns: email, phone, LinkedIn URL, and treat the
+ * first non-empty short line as the candidate name. Location is
+ * detected via common patterns like "City, ST" or "Open to Relocate".
  */
-function extractContactInfo(): ContactInfo {
-  return {
-    name: "Sai Susmitha K",
-    email: "ksusmitha10@gmail.com",
-    phone: "+1 (913)-565-8659",
+function extractContactInfo(rawText: string): ContactInfo {
+  const contact: ContactInfo = {
+    name: "",
+    email: "",
+    phone: "",
     linkedin: "",
-    location: "United States | Open to Relocate",
+    location: "",
+  };
+
+  // Normalise non-ASCII chars
+  const normalised = rawText
+    .replace(/[\u2013\u2014]/g, "-")
+    .replace(/[\u00A0]/g, " ");
+  const lines = normalised.split("\n");
+
+  // Find the first section heading to limit our search to the header
+  const sectionPattern =
+    /\b(PROFESSIONAL\s+SUMMARY|EXECUTIVE\s+SUMMARY|CAREER\s+SUMMARY|SUMMARY\s+OF\s+QUALIFICATIONS|SUMMARY|PROFILE|OBJECTIVE|TECHNICAL\s+SKILLS|KEY\s+SKILLS|PROFESSIONAL\s+SKILLS|SKILLS|CORE\s+COMPETENCIES|COMPETENCIES|WORK\s+EXPERIENCE|PROFESSIONAL\s+EXPERIENCE|RELEVANT\s+EXPERIENCE|EXPERIENCE|EMPLOYMENT|EDUCATION|CERTIFICATIONS?)\b/i;
+
+  let headerEndIndex = lines.length;
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (trimmed.length > 0 && trimmed.length < 80 && sectionPattern.test(trimmed)) {
+      headerEndIndex = i;
+      break;
+    }
+  }
+
+  const headerLines = lines.slice(0, headerEndIndex);
+
+  // Patterns
+  const emailRe = /[\w.+-]+@[\w-]+\.[\w.-]+/;
+  const phoneRe = /(?:\+?\d[\d\s\-().]{7,}\d)/;
+  const linkedinRe = /(?:https?:\/\/)?(?:www\.)?linkedin\.com\/in\/[\w-]+\/?/i;
+  const locationRe =
+    /\b([A-Z][a-z]+(?:\s[A-Z][a-z]+)*,\s*[A-Z]{2})\b|(?:open\s+to\s+relocat)/i;
+
+  for (const line of headerLines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    // Email
+    if (!contact.email) {
+      const emailMatch = trimmed.match(emailRe);
+      if (emailMatch) contact.email = emailMatch[0];
+    }
+
+    // Phone
+    if (!contact.phone) {
+      const phoneMatch = trimmed.match(phoneRe);
+      if (phoneMatch) {
+        const cleaned = phoneMatch[0].trim();
+        // Avoid matching years like "2020" — require 7+ digits
+        if (cleaned.replace(/\D/g, "").length >= 7) {
+          contact.phone = cleaned;
+        }
+      }
+    }
+
+    // LinkedIn
+    if (!contact.linkedin) {
+      const linkedinMatch = trimmed.match(linkedinRe);
+      if (linkedinMatch) contact.linkedin = linkedinMatch[0];
+    }
+
+    // Location — "City, ST" or relocation text
+    if (!contact.location) {
+      const locMatch = trimmed.match(locationRe);
+      if (locMatch) {
+        // Use the whole line if it's short (likely a location line)
+        contact.location = trimmed.length < 80 ? trimmed : (locMatch[1] || locMatch[0]);
+      }
+    }
+  }
+
+  // Name — first non-empty line that isn't an email/phone/URL/location
+  for (const line of headerLines) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.length > 60) continue;
+    // Skip lines that are clearly contact details
+    if (emailRe.test(trimmed)) continue;
+    if (linkedinRe.test(trimmed)) continue;
+    if (/^[\d+(\s\-).]+$/.test(trimmed)) continue; // pure phone line
+    if (locationRe.test(trimmed) && !(/^[A-Z][a-z]+ [A-Z][a-z]+/.test(trimmed) && trimmed.split(/\s+/).length <= 4)) continue;
+    // Skip lines with common non-name patterns
+    if (/^(http|www\.|@|phone|email|address)/i.test(trimmed)) continue;
+    // Likely the name — a short line of mainly letters
+    if (/^[A-Za-z\s.',-]+$/.test(trimmed) && trimmed.split(/\s+/).length >= 2) {
+      contact.name = trimmed;
+      break;
+    }
+    // Even a single word could be a name at the very top
+    if (/^[A-Za-z.']+$/.test(trimmed) && headerLines.indexOf(line) === 0) {
+      contact.name = trimmed;
+      break;
+    }
+  }
+
+  return contact;
+}
+
+/**
+ * Merge two ContactInfo objects. Values from `override` take priority
+ * when they are non-empty. Useful for letting user-configured Settings
+ * contact info supplement or replace extracted values.
+ */
+export function mergeContactInfo(
+  extracted: ContactInfo,
+  override: Partial<ContactInfo>,
+): ContactInfo {
+  return {
+    name: override.name?.trim() || extracted.name,
+    email: override.email?.trim() || extracted.email,
+    phone: override.phone?.trim() || extracted.phone,
+    linkedin: override.linkedin?.trim() || extracted.linkedin,
+    location: override.location?.trim() || extracted.location,
   };
 }
