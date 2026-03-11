@@ -107,6 +107,7 @@ export interface ATSReport {
   domainComplianceAudit: DomainComplianceAudit;
   placeholdersUsed: string[];
   formattingQaStatus: ATSFormattingQaStatus;
+  recommendations: string[];
 }
 
 // ── Cloud Detection ─────────────────────────────────────────
@@ -176,4 +177,141 @@ export interface ExtractedMasterResume {
     workExperience?: string;
     education?: string;
   };
+}
+
+// ── Server Integration Types ────────────────────────────────
+
+export interface SmtpConfig {
+  host: string;
+  port: string;
+  user: string;
+  pass: string;
+  from: string;
+}
+
+export interface AppSettings {
+  openaiApiKey: string;
+  contact: ContactInfo;
+  smtp: SmtpConfig;
+  preferredTemplate: string;
+  preferredFormats: string[];
+  lastRole: string | null;
+}
+
+export type UploadCategory = "resume" | "experience" | "supporting" | "jd";
+
+export interface UploadedDocMeta {
+  id: string;
+  category: UploadCategory;
+  originalName: string;
+  storedName: string;
+  size: number;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+export interface ServerResumeMeta {
+  id: string;
+  type: MasterResumeType;
+  originalName: string;
+  storedName: string;
+  size: number;
+  mimeType: string;
+  uploadedAt: string;
+}
+
+export interface ProfileData {
+  resumes: ServerResumeMeta[];
+}
+
+export type OutputFormat = "docx" | "pdf" | "txt" | "md";
+
+export interface GeneratedFile {
+  format: OutputFormat;
+  filename: string;
+  mimeType: string;
+  base64: string;
+  sizeBytes: number;
+}
+
+export type ProgressStepId =
+  | "parsing-jd"
+  | "resolving-source"
+  | "identifying-skills"
+  | "matching-experience"
+  | "drafting-resume"
+  | "building-report"
+  | "generating-files";
+
+export type ProgressStepStatus = "pending" | "active" | "completed" | "failed";
+
+export interface ServerProgressStep {
+  id: ProgressStepId;
+  label: string;
+  status: ProgressStepStatus;
+}
+
+export type GenerationJobStatus = "queued" | "in-progress" | "completed" | "failed";
+
+export interface GenerationJobResult {
+  parsedJD: ParsedJD;
+  selectedMaster: MasterResumeType;
+  cloudDetection: CloudDetectionResult;
+  resume: ResumeSectionOutput;
+  report: ATSReport;
+  contactInfo: ContactInfo;
+  generatedFiles: GeneratedFile[];
+}
+
+export interface GenerationJob {
+  id: string;
+  status: GenerationJobStatus;
+  steps: ServerProgressStep[];
+  currentStepId: ProgressStepId | null;
+  result: GenerationJobResult | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GenerationInput {
+  jobInput: JobInput;
+  awsMasterUploadId?: string;
+  azureMasterUploadId?: string;
+  awsMasterUploaded: boolean;
+  azureMasterUploaded: boolean;
+  preferredTemplate?: string;
+  preferredFormats?: string[];
+  customInstructions?: string;
+}
+
+export interface EmailSendRequest {
+  jobId: string;
+  to: string;
+  subject?: string;
+  body?: string;
+}
+
+// ── Resume Slot (multi-resume experience storage) ───────────
+
+export interface ResumeSlot {
+  id: string;
+  label: string;
+  roleHint: string;
+  specialization: string;
+  originalFileName: string;
+  fileType: string;
+  uploadedAt: string;
+  notes: string;
+  tags: string[];
+  uploadId: string;
+}
+
+// ── Per-Role Settings ───────────────────────────────────────
+
+export interface RoleSettings {
+  selectedResumeSlotId: string;
+  customInstructions: string;
+  preferredTemplate: string;
+  preferredFormats: string[];
 }

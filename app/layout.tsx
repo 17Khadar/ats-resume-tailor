@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import Sidebar from "@/components/layout/Sidebar";
 
 export const metadata: Metadata = {
   title: "ATS Resume Tailor",
@@ -14,7 +15,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="bg-gray-50 text-gray-900 antialiased min-h-screen">
-        {children}
+        <div className="flex min-h-screen">
+          <Sidebar />
+          <div className="flex-1 ml-64 min-h-screen">
+            {children}
+          </div>
+        </div>
       </body>
     </html>
   );

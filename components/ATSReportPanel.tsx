@@ -114,6 +114,49 @@ export default function ATSReportPanel({ report }: Props) {
         </span>
         <span className="text-sm text-gray-600">Formatting QA: No clipping / no bullet gaps / clean contact line / no partial bold</span>
       </div>
+
+      {/* Recommendations to reach 10/10 */}
+      {report.recommendations && report.recommendations.length > 0 && (
+        <div className="border-t border-gray-200 pt-4">
+          <h3 className="text-sm font-bold text-gray-800 mb-2">
+            {report.atsScore >= 10
+              ? "\u2705 Perfect Score"
+              : `\uD83D\uDCA1 Recommendations to Reach 10/10`}
+          </h3>
+          {report.atsScore < 10 && (
+            <p className="text-xs text-gray-500 mb-2">
+              Address the items below to improve your ATS match score by {10 - report.atsScore} point(s).
+            </p>
+          )}
+          <ul className="space-y-2">
+            {report.recommendations.map((rec, i) => {
+              const colonIdx = rec.indexOf(":");
+              const hasLabel = colonIdx > 0 && colonIdx < 40;
+              const label = hasLabel ? rec.substring(0, colonIdx) : null;
+              const body = hasLabel ? rec.substring(colonIdx + 1).trim() : rec;
+
+              return (
+                <li key={i} className="flex items-start gap-2">
+                  <span className={`mt-0.5 flex-shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-xs font-bold ${
+                    report.atsScore >= 10 ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"
+                  }`}>
+                    {report.atsScore >= 10 ? "\u2713" : i + 1}
+                  </span>
+                  <div className="text-sm text-gray-700">
+                    {label && <span className="font-semibold text-gray-800">{label}: </span>}
+                    {body}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {report.atsScore < 10 && (
+            <p className="text-xs text-gray-400 mt-3">
+              Tip: Use the Custom Instructions box to paste specific skills or requirements, then re-generate.
+            </p>
+          )}
+        </div>
+      )}
     </div>
   );
 }

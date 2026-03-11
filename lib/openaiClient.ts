@@ -145,12 +145,18 @@ IMPORTANT:
 export async function aiTailorResume(
   master: ExtractedMasterResume,
   jd: ParsedJD,
-  cloud: CloudDetectionResult
+  cloud: CloudDetectionResult,
+  customInstructions?: string
 ): Promise<ResumeSectionOutput | null> {
   const client = getClient();
   if (!client) return null;
 
-  const userPrompt = buildTailoringPrompt(master, jd, cloud);
+  let userPrompt = buildTailoringPrompt(master, jd, cloud);
+
+  // Append custom instructions if provided
+  if (customInstructions?.trim()) {
+    userPrompt += `\n\n---\n\n## CUSTOM INSTRUCTIONS FROM USER\nThe user has provided the following additional instructions. Honor them within truth and ATS safety constraints — do not fabricate experience or credentials that are not in the master resume.\n\n${customInstructions.trim()}`;
+  }
 
   try {
     console.log("[AI Tailor] Calling OpenAI GPT-4o for resume tailoring...");

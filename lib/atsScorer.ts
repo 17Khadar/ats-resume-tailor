@@ -236,6 +236,93 @@ export function generateATSReport(
     .filter((kw) => skillsText.includes(kw.toLowerCase()))
     .slice(0, 10);
 
+  // ── Generate actionable recommendations for missing points ──
+  const recommendations: string[] = [];
+
+  if (titleScore.score < 2) {
+    recommendations.push(
+      `Title Mismatch: Change resume title from "${resume.title}" to exactly "${jd.title}" to gain ${2 - titleScore.score} point(s).`
+    );
+  }
+
+  if (mustHaveScore.score < 2) {
+    const cleanMustHaves = jd.mustHaves.filter(isSkillKeyword);
+    const expText = resume.workExperience.map((e) => e.bullets.join(" ")).join(" ");
+    const missingInSkills = cleanMustHaves.filter((mh) => !textContains(skillsText, mh));
+    const presentInSkillsOnly = cleanMustHaves.filter(
+      (mh) => textContains(skillsText, mh) && !textContains(expText, mh)
+    );
+
+    if (missingInSkills.length > 0) {
+      recommendations.push(
+        `Missing Must-Have Skills: Add these to the Skills section: ${missingInSkills.join(", ")}.`
+      );
+    }
+    if (presentInSkillsOnly.length > 0) {
+      recommendations.push(
+        `Skills Not in Experience: These skills are listed but not mentioned in any experience bullet — add context: ${presentInSkillsOnly.join(", ")}.`
+      );
+    }
+    if (missingInSkills.length === 0 && presentInSkillsOnly.length === 0) {
+      recommendations.push(
+        "Must-Have Coverage: Ensure each must-have skill appears in both the Skills section AND at least one experience bullet with specific context."
+      );
+    }
+  }
+
+  if (respScore.score < 2) {
+    const expText = resume.workExperience.map((e) => e.bullets.join(" ")).join(" ");
+    const uncoveredResps = jd.responsibilities.filter((r) => {
+      const words = r.toLowerCase().split(/\s+/).filter((w) => w.length > 4);
+      const hits = words.filter((w) => expText.toLowerCase().includes(w));
+      return hits.length < Math.ceil(words.length * 0.3);
+    });
+    if (uncoveredResps.length > 0) {
+      const previews = uncoveredResps.slice(0, 3).map(
+        (r) => `"${r.length > 80 ? r.substring(0, 77) + "..." : r}"`
+      );
+      recommendations.push(
+        `Uncovered Responsibilities (${uncoveredResps.length}): Add experience bullets addressing: ${previews.join("; ")}.`
+      );
+    }
+  }
+
+  if (cloudScore.score < 2) {
+    const allText = [resume.summary, skillsText, ...resume.workExperience.flatMap((e) => e.bullets)].join(" ");
+    const missingCloud = cloud.dominantKeywords.filter((kw) => !textContains(allText, kw));
+    if (missingCloud.length > 0) {
+      recommendations.push(
+        `Missing Cloud Keywords: Add these ${cloud.cloudType.toUpperCase()} services to Skills and Experience: ${missingCloud.join(", ")}.`
+      );
+    }
+    if (cloud.cloudType !== "unknown" && selectedMaster !== cloud.cloudType) {
+      recommendations.push(
+        `Cloud Mismatch: JD targets ${cloud.cloudType.toUpperCase()} but ${selectedMaster.toUpperCase()} master was used. Upload and select the ${cloud.cloudType.toUpperCase()} master resume.`
+      );
+    }
+  }
+
+  if (domainScore.score < 2) {
+    const allDomain = [...jd.domainKeywords, ...jd.complianceKeywords];
+    const resumeAllText = [resume.summary, skillsText, ...resume.workExperience.flatMap((e) => e.bullets)].join(" ");
+    const missingDomain = allDomain.filter((kw) => !textContains(resumeAllText, kw));
+    if (missingDomain.length > 0) {
+      recommendations.push(
+        `Missing Domain/Compliance Keywords: Mention these in Skills or Experience: ${missingDomain.join(", ")}.`
+      );
+    }
+  }
+
+  if (recommendations.length === 0 && total < 10) {
+    recommendations.push(
+      "Review each rubric category above and ensure keyword coverage thresholds are met (≥70% for 2 points, ≥50% for 1 point)."
+    );
+  }
+
+  if (total === 10) {
+    recommendations.push("Perfect score! No improvements needed.");
+  }
+
   return {
     jdSource,
     selectedMaster,
@@ -250,5 +337,6 @@ export function generateATSReport(
       isAtsSafe: true,
       warnings: [],
     },
+    recommendations,
   };
 }

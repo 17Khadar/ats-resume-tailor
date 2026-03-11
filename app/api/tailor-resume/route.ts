@@ -24,6 +24,7 @@ export async function POST(request: NextRequest) {
     const jdText = formData.get("jdText") as string | null;
     const awsFile = formData.get("awsMaster") as File | null;
     const azureFile = formData.get("azureMaster") as File | null;
+    const customInstructions = (formData.get("customInstructions") as string | null)?.trim() || undefined;
 
     // Validate at least one input
     if (!jobId?.trim() && !companyName?.trim() && !jdUrl?.trim() && !jdText?.trim()) {
@@ -107,6 +108,17 @@ export async function POST(request: NextRequest) {
     const buffer = Buffer.from(arrayBuffer);
     const masterResume = await extractResumeFromDocx(buffer);
 
+    // Debug: log extracted sections so we can diagnose extraction issues
+    console.log("[tailor] Extracted sections:", {
+      summary: masterResume.sections.summary ? `${masterResume.sections.summary.length} chars` : "MISSING",
+      skills: masterResume.sections.skills ? `${masterResume.sections.skills.length} chars` : "MISSING",
+      workExperience: masterResume.sections.workExperience ? `${masterResume.sections.workExperience.length} chars` : "MISSING",
+      education: masterResume.sections.education ? `${masterResume.sections.education.length} chars` : "MISSING",
+    });
+    if (masterResume.sections.skills) {
+      console.log("[tailor] Skills preview:", masterResume.sections.skills.substring(0, 300));
+    }
+
     // ── Step 6: Tailor resume (AI-powered if API key available, otherwise rule-based) ──
     let resume: import("@/types").ResumeSectionOutput;
     let learnableSkillsAdded: string[] = [];
@@ -114,7 +126,7 @@ export async function POST(request: NextRequest) {
 
     if (isAIEnabled()) {
       // Try AI-powered tailoring first
-      const aiResume = await aiTailorResume(masterResume, parsedJD, cloudDetection);
+      const aiResume = await aiTailorResume(masterResume, parsedJD, cloudDetection, customInstructions);
       if (aiResume) {
         resume = aiResume;
         // Track which skills were added (compare master vs tailored)
@@ -124,14 +136,14 @@ export async function POST(request: NextRequest) {
           .filter((kw) => aiResume.skills.join(" ").toLowerCase().includes(kw.toLowerCase()));
       } else {
         // AI failed, fall back to rule-based
-        const result = tailorResume(masterResume, parsedJD, cloudDetection);
+        const result = tailorResume(masterResume, parsedJD, cloudDetection, customInstructions);
         resume = result.resume;
         learnableSkillsAdded = result.learnableSkillsAdded;
         placeholdersUsed = result.placeholdersUsed;
       }
     } else {
       // No API key — use rule-based tailoring
-      const result = tailorResume(masterResume, parsedJD, cloudDetection);
+      const result = tailorResume(masterResume, parsedJD, cloudDetection, customInstructions);
       resume = result.resume;
       learnableSkillsAdded = result.learnableSkillsAdded;
       placeholdersUsed = result.placeholdersUsed;

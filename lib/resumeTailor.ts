@@ -810,7 +810,8 @@ function addDomainComplianceToSkills(
 export function tailorResume(
   master: ExtractedMasterResume,
   jd: ParsedJD,
-  cloud: CloudDetectionResult
+  cloud: CloudDetectionResult,
+  customInstructions?: string
 ): { resume: ResumeSectionOutput; learnableSkillsAdded: string[]; placeholdersUsed: string[] } {
   // Extract JD verbs and tools for rewriting
   const jdVerbs = extractJdVerbs(jd);
@@ -838,6 +839,38 @@ export function tailorResume(
 
   // Add domain/compliance keywords
   const skills = addDomainComplianceToSkills(rawSkills, jd, master.rawText);
+
+  // Apply custom instructions: extract skill lines from user instructions
+  if (customInstructions) {
+    const instrLines = customInstructions.split("\n").map((l) => l.trim()).filter(Boolean);
+    for (const line of instrLines) {
+      // Detect "Category: skill1, skill2" patterns from custom instructions
+      const colonIdx = line.indexOf(":");
+      if (colonIdx > 0 && colonIdx < 50) {
+        const category = line.substring(0, colonIdx).trim();
+        const values = line.substring(colonIdx + 1).trim();
+        if (values.length > 0 && /^[A-Za-z &/]+$/.test(category)) {
+          // Check if this category already exists in skills
+          const existingIdx = skills.findIndex(
+            (s) => s.toLowerCase().startsWith(category.toLowerCase() + ":")
+          );
+          if (existingIdx >= 0) {
+            // Merge into existing line
+            const existingValues = skills[existingIdx].substring(skills[existingIdx].indexOf(":") + 1).trim();
+            const existingLower = existingValues.toLowerCase();
+            const newItems = values.split(",").map((v) => v.trim()).filter(
+              (v) => v && !existingLower.includes(v.toLowerCase())
+            );
+            if (newItems.length > 0) {
+              skills[existingIdx] = `${category}: ${existingValues}, ${newItems.join(", ")}`;
+            }
+          } else {
+            skills.push(line);
+          }
+        }
+      }
+    }
+  }
 
   // Build summary (rewrite to mirror JD language)
   const summary = buildSummary(master.sections.summary || "", jd, cloud);

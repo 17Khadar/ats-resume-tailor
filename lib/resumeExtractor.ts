@@ -25,13 +25,27 @@ export async function extractResumeFromDocx(buffer: Buffer): Promise<ExtractedMa
  */
 function splitIntoSections(text: string): ExtractedMasterResume["sections"] {
   const headingPatterns: { key: keyof ExtractedMasterResume["sections"]; pattern: RegExp }[] = [
-    { key: "summary", pattern: /\b(PROFESSIONAL\s+SUMMARY|SUMMARY|PROFILE|OBJECTIVE)\b/i },
-    { key: "skills", pattern: /\b(TECHNICAL\s+SKILLS|SKILLS|CORE\s+COMPETENCIES|TECHNOLOGIES)\b/i },
-    { key: "workExperience", pattern: /\b(WORK\s+EXPERIENCE|PROFESSIONAL\s+EXPERIENCE|EXPERIENCE|EMPLOYMENT\s+HISTORY)\b/i },
-    { key: "education", pattern: /\b(EDUCATION|ACADEMIC|CERTIFICATIONS?\s*(?:&|AND)?\s*EDUCATION)\b/i },
+    {
+      key: "summary",
+      pattern: /\b(PROFESSIONAL\s+SUMMARY|EXECUTIVE\s+SUMMARY|CAREER\s+SUMMARY|SUMMARY\s+OF\s+QUALIFICATIONS|SUMMARY|PROFILE|OBJECTIVE)\b/i,
+    },
+    {
+      key: "skills",
+      pattern: /\b(TECHNICAL\s+SKILLS|KEY\s+SKILLS|PROFESSIONAL\s+SKILLS|RELEVANT\s+SKILLS|SKILLS\s+(?:&|AND)\s+\w+|SKILLS\s+SUMMARY|SKILL\s*SET|SKILLS|CORE\s+COMPETENCIES|KEY\s+COMPETENCIES|COMPETENCIES|TECHNICAL\s+PROFICIENCIES|PROFICIENCIES|TECHNICAL\s+EXPERTISE|AREAS\s+OF\s+EXPERTISE|TOOLS\s+(?:&|AND)\s+TECHNOLOGIES|TECHNOLOGIES)\b/i,
+    },
+    {
+      key: "workExperience",
+      pattern: /\b(WORK\s+EXPERIENCE|PROFESSIONAL\s+EXPERIENCE|RELEVANT\s+EXPERIENCE|CAREER\s+HISTORY|EXPERIENCE|EMPLOYMENT\s+HISTORY|EMPLOYMENT)\b/i,
+    },
+    {
+      key: "education",
+      pattern: /\b(EDUCATION\s+(?:&|AND)\s+CERTIFICATIONS?|CERTIFICATIONS?\s*(?:&|AND)?\s*EDUCATION|EDUCATION|ACADEMIC|CERTIFICATIONS?)\b/i,
+    },
   ];
 
-  const lines = text.split("\n");
+  // Normalise non-ASCII whitespace/dashes that mammoth may produce
+  const normalised = text.replace(/[\u2013\u2014]/g, "-").replace(/[\u00A0]/g, " ");
+  const lines = normalised.split("\n");
   const sectionStarts: { key: string; index: number }[] = [];
 
   for (let i = 0; i < lines.length; i++) {
@@ -39,9 +53,12 @@ function splitIntoSections(text: string): ExtractedMasterResume["sections"] {
     if (!trimmed) continue;
 
     for (const { key, pattern } of headingPatterns) {
-      // A section heading is usually a short line (< 60 chars) that matches the pattern
-      if (trimmed.length < 60 && pattern.test(trimmed)) {
-        sectionStarts.push({ key, index: i });
+      // A section heading is usually a short line (< 80 chars) that matches the pattern
+      if (trimmed.length < 80 && pattern.test(trimmed)) {
+        // Avoid duplicate sections — keep the first match for each key
+        if (!sectionStarts.some((s) => s.key === key)) {
+          sectionStarts.push({ key, index: i });
+        }
         break;
       }
     }
@@ -58,6 +75,27 @@ function splitIntoSections(text: string): ExtractedMasterResume["sections"] {
     const content = lines.slice(start, end).join("\n").trim();
     const key = sectionStarts[s].key as keyof ExtractedMasterResume["sections"];
     sections[key] = content;
+  }
+
+  // ── Fallback: if no skills section was found, try to detect skill-like
+  // lines from the raw text (lines matching "Category: item1, item2, ...")
+  if (!sections.skills) {
+    const skillLines: string[] = [];
+    for (const line of lines) {
+      const t = line.trim();
+      // Skill line heuristic: "Category Name: value, value, ..."
+      if (
+        t.length > 10 &&
+        t.length < 200 &&
+        /^[A-Za-z &/]+:\s*.+,/.test(t) &&
+        !/\b(http|www\.|@|phone|email|address)\b/i.test(t)
+      ) {
+        skillLines.push(t);
+      }
+    }
+    if (skillLines.length >= 2) {
+      sections.skills = skillLines.join("\n");
+    }
   }
 
   return sections;
