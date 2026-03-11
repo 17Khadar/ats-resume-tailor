@@ -18,6 +18,8 @@ import type { ProgressStep } from "@/components/progress/GenerationProgress";
 import { usePersistedResumeSlots } from "@/hooks/usePersistedResumeSlots";
 import { usePersistedSettings } from "@/hooks/usePersistedSettings";
 import * as api from "@/lib/apiClient";
+import { IS_LOCAL_ONLY } from "@/lib/endpoints";
+import { getFile } from "@/lib/localFileStore";
 import ResumeSlotSelector from "@/components/workspace/ResumeSlotSelector";
 import CustomInstructionsBox from "@/components/workspace/CustomInstructionsBox";
 import JobInputForm from "@/components/JobInputForm";
@@ -112,59 +114,112 @@ export default function RoleWorkspaceShell({ role }: Props) {
     setIsLoading(true);
 
     try {
-      // Determine which master upload slot to use based on specialization.
-      // If specialization contains "azure", map to azureMaster; otherwise awsMaster.
-      // This preserves compatibility with the existing server generation pipeline.
-      const specLower = (selectedSlot.specialization ?? "").toLowerCase();
-      const isAzure = specLower.includes("azure");
+      if (IS_LOCAL_ONLY) {
+        // ── Client-only path: call Next.js API route directly ──
+        setProgressStep("parsing-jd");
 
-      const { jobId } = await api.startGeneration({
-        jobInput,
-        awsMasterUploadId: isAzure ? undefined : selectedSlot.uploadId,
-        azureMasterUploadId: isAzure ? selectedSlot.uploadId : undefined,
-        awsMasterUploaded: !isAzure,
-        azureMasterUploaded: isAzure,
-        preferredTemplate: template,
-        preferredFormats: formats,
-        customInstructions: instructionsSubmitted ? instructionsDraft.trim() : undefined,
-      });
+        // Retrieve the file from IndexedDB
+        const stored = await getFile(selectedSlot.uploadId);
+        if (!stored) {
+          setError("Resume file not found. Please re-upload on the Experience page.");
+          setIsLoading(false);
+          return;
+        }
 
-      setProgressStep("parsing-jd");
+        const file = new File([stored.data], stored.name, { type: stored.type });
+        const specLower = (selectedSlot.specialization ?? "").toLowerCase();
+        const isAzure = specLower.includes("azure");
 
-      // Poll for status
-      pollRef.current = setInterval(async () => {
-        try {
-          const job = await api.getJobStatus(jobId);
-          setProgressStep(toDisplayStep(job));
+        const formData = new FormData();
+        if (jobInput.jobId) formData.append("jobId", jobInput.jobId);
+        if (jobInput.companyName) formData.append("companyName", jobInput.companyName);
+        if (jobInput.jdUrl) formData.append("jdUrl", jobInput.jdUrl);
+        if (jobInput.jdText) formData.append("jdText", jobInput.jdText);
+        if (instructionsSubmitted && instructionsDraft.trim()) {
+          formData.append("customInstructions", instructionsDraft.trim());
+        }
+        formData.append(isAzure ? "azureMaster" : "awsMaster", file);
 
-          if (job.status === "completed" && job.result) {
+        setProgressStep("tailoring" as ProgressStep);
+
+        const res = await fetch("/api/tailor-resume", { method: "POST", body: formData });
+        const data = await res.json();
+
+        if (!res.ok || !data.success) {
+          setError(data.error || "Generation failed.");
+          setIsLoading(false);
+          return;
+        }
+
+        setProgressStep("complete");
+        setResult({
+          success: true,
+          parsedJD: data.parsedJD,
+          selectedMaster: data.selectedMaster,
+          cloudDetection: data.cloudDetection,
+          resume: data.resume,
+          report: data.report,
+          contactInfo: data.contactInfo,
+        });
+
+        // Clear custom instructions after successful generation
+        setInstructionsDraft("");
+        setInstructionsSubmitted(false);
+        updateRoleSettings(role.slug, { customInstructions: "" });
+        setIsLoading(false);
+      } else {
+        // ── Backend path: start job + poll for status ──
+        const specLower = (selectedSlot.specialization ?? "").toLowerCase();
+        const isAzure = specLower.includes("azure");
+
+        const { jobId } = await api.startGeneration({
+          jobInput,
+          awsMasterUploadId: isAzure ? undefined : selectedSlot.uploadId,
+          azureMasterUploadId: isAzure ? selectedSlot.uploadId : undefined,
+          awsMasterUploaded: !isAzure,
+          azureMasterUploaded: isAzure,
+          preferredTemplate: template,
+          preferredFormats: formats,
+          customInstructions: instructionsSubmitted ? instructionsDraft.trim() : undefined,
+        });
+
+        setProgressStep("parsing-jd");
+
+        // Poll for status
+        pollRef.current = setInterval(async () => {
+          try {
+            const job = await api.getJobStatus(jobId);
+            setProgressStep(toDisplayStep(job));
+
+            if (job.status === "completed" && job.result) {
+              stopPolling();
+              setServerFiles(job.result.generatedFiles ?? []);
+              setResult({
+                success: true,
+                parsedJD: job.result.parsedJD,
+                selectedMaster: job.result.selectedMaster,
+                cloudDetection: job.result.cloudDetection,
+                resume: job.result.resume,
+                report: job.result.report,
+                contactInfo: job.result.contactInfo,
+              });
+              // Clear custom instructions after successful generation
+              setInstructionsDraft("");
+              setInstructionsSubmitted(false);
+              updateRoleSettings(role.slug, { customInstructions: "" });
+              setIsLoading(false);
+            } else if (job.status === "failed") {
+              stopPolling();
+              setError(job.error || "Generation failed.");
+              setIsLoading(false);
+            }
+          } catch {
             stopPolling();
-            setServerFiles(job.result.generatedFiles ?? []);
-            setResult({
-              success: true,
-              parsedJD: job.result.parsedJD,
-              selectedMaster: job.result.selectedMaster,
-              cloudDetection: job.result.cloudDetection,
-              resume: job.result.resume,
-              report: job.result.report,
-              contactInfo: job.result.contactInfo,
-            });
-            // Clear custom instructions after successful generation
-            setInstructionsDraft("");
-            setInstructionsSubmitted(false);
-            updateRoleSettings(role.slug, { customInstructions: "" });
-            setIsLoading(false);
-          } else if (job.status === "failed") {
-            stopPolling();
-            setError(job.error || "Generation failed.");
+            setError("Lost connection to server while checking progress.");
             setIsLoading(false);
           }
-        } catch {
-          stopPolling();
-          setError("Lost connection to server while checking progress.");
-          setIsLoading(false);
-        }
-      }, 1500);
+        }, 1500);
+      }
     } catch (err) {
       setError(
         err instanceof Error

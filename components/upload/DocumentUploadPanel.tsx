@@ -7,6 +7,7 @@
 
 import { useRef, useState, type ChangeEvent } from "react";
 import * as api from "@/lib/apiClient";
+import { IS_LOCAL_ONLY } from "@/lib/endpoints";
 import type { UploadCategory } from "@/types";
 
 export interface UploadedDoc {
@@ -93,27 +94,29 @@ export default function DocumentUploadPanel({ documents, onChange }: Props) {
     }
     onChange(updated);
 
-    // Upload to server
-    setUploading(true);
-    try {
-      const uploaded = await Promise.all(
-        newDocs.map(async (doc) => {
-          const meta = await api.uploadFile(doc.file, doc.category as UploadCategory);
-          return { ...doc, serverId: meta.id };
-        }),
-      );
-      // Merge server IDs into the list
-      const merged = updated.map((d) => {
-        const match = uploaded.find(
-          (u) => u.file === d.file && u.addedAt === d.addedAt,
+    // Upload to server (skip when no backend is available)
+    if (!IS_LOCAL_ONLY) {
+      setUploading(true);
+      try {
+        const uploaded = await Promise.all(
+          newDocs.map(async (doc) => {
+            const meta = await api.uploadFile(doc.file, doc.category as UploadCategory);
+            return { ...doc, serverId: meta.id };
+          }),
         );
-        return match ?? d;
-      });
-      onChange(merged);
-    } catch {
-      // Files already added locally — server upload failed silently
-    } finally {
-      setUploading(false);
+        // Merge server IDs into the list
+        const merged = updated.map((d) => {
+          const match = uploaded.find(
+            (u) => u.file === d.file && u.addedAt === d.addedAt,
+          );
+          return match ?? d;
+        });
+        onChange(merged);
+      } catch {
+        // Files already added locally — server upload failed silently
+      } finally {
+        setUploading(false);
+      }
     }
 
     // Reset input so same file can be re-selected
@@ -124,8 +127,8 @@ export default function DocumentUploadPanel({ documents, onChange }: Props) {
 
   const removeDoc = (index: number) => {
     const doc = documents[index];
-    // Delete from server if we have a server ID
-    if (doc?.serverId) {
+    // Delete from server if we have a server ID (skip when no backend)
+    if (!IS_LOCAL_ONLY && doc?.serverId) {
       api.deleteUpload(doc.serverId).catch(() => {});
     }
     onChange(documents.filter((_, i) => i !== index));

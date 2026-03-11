@@ -8,7 +8,9 @@
 import { useRef, useState } from "react";
 import { usePersistedResumeSlots } from "@/hooks/usePersistedResumeSlots";
 import { ROLES } from "@/lib/roles";
+import { IS_LOCAL_ONLY } from "@/lib/endpoints";
 import * as api from "@/lib/apiClient";
+import * as localFiles from "@/lib/localFileStore";
 import type { ResumeSlot } from "@/types";
 
 function generateId(): string {
@@ -54,13 +56,24 @@ export default function ExperiencePage() {
     setUploading(slotId);
     setError(null);
     try {
-      const meta = await api.uploadFile(file, "resume");
-      updateSlot(slotId, {
-        originalFileName: file.name,
-        fileType: file.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-        uploadedAt: new Date().toISOString(),
-        uploadId: meta.id,
-      });
+      if (IS_LOCAL_ONLY) {
+        // No backend — store in IndexedDB
+        const meta = await localFiles.saveFile(file);
+        updateSlot(slotId, {
+          originalFileName: file.name,
+          fileType: meta.type,
+          uploadedAt: meta.storedAt,
+          uploadId: meta.id,
+        });
+      } else {
+        const meta = await api.uploadFile(file, "resume");
+        updateSlot(slotId, {
+          originalFileName: file.name,
+          fileType: file.type || "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          uploadedAt: new Date().toISOString(),
+          uploadId: meta.id,
+        });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Upload failed.");
     } finally {
@@ -71,7 +84,11 @@ export default function ExperiencePage() {
   // ── Remove a slot ──
   const handleRemove = (slot: ResumeSlot) => {
     if (slot.uploadId) {
-      api.deleteUpload(slot.uploadId).catch(() => {});
+      if (IS_LOCAL_ONLY) {
+        localFiles.deleteFile(slot.uploadId).catch(() => {});
+      } else {
+        api.deleteUpload(slot.uploadId).catch(() => {});
+      }
     }
     removeSlot(slot.id);
   };
@@ -290,9 +307,8 @@ export default function ExperiencePage() {
         {/* Info note */}
         <div className="bg-amber-50 border border-amber-200 rounded-lg p-4">
           <p className="text-sm text-amber-800">
-            <strong>Note:</strong> Files are uploaded to the server and persist across sessions.
-            Metadata is saved locally for quick access. Label each slot clearly so you can
-            easily select the right resume when generating from a role page.
+            <strong>Note:</strong> Files are stored in your browser and persist across sessions.
+            Label each slot clearly so you can easily select the right resume when generating from a role page.
           </p>
         </div>
 
