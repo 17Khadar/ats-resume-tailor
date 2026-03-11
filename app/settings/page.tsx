@@ -148,7 +148,11 @@ export default function SettingsPage() {
               <input
                 type="tel"
                 value={contact.phone}
-                onChange={(e) => setContact({ phone: e.target.value })}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d+\-()\s]/g, "");
+                  if (v.length <= 12) setContact({ phone: v });
+                }}
+                maxLength={12}
                 placeholder="+1 (555) 000-0000"
                 className={inputClass}
               />
