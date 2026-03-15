@@ -10,6 +10,7 @@ import {
   HeadingLevel,
   AlignmentType,
   BorderStyle,
+  ExternalHyperlink,
 } from "docx";
 import type { ATSReport, ContactInfo, ResumeSectionOutput } from "@/types";
 
@@ -95,17 +96,45 @@ export function buildResumeDocument(resume: ResumeSectionOutput, report: ATSRepo
       })
     );
   }
-  const contactParts = [
-    contactInfo?.email, contactInfo?.phone, contactInfo?.linkedin, contactInfo?.location,
-  ].filter(Boolean);
+  // Build contact line with LinkedIn as hyperlink if present
+  const contactParts: (TextRun | string | ExternalHyperlink)[] = [];
+  if (contactInfo?.email) contactParts.push(contactInfo.email);
+  if (contactInfo?.phone) contactParts.push(contactInfo.phone);
+  if (contactInfo?.linkedin && contactInfo?.linkedinDisplay) {
+    const link = contactInfo.linkedin.startsWith("http") ? contactInfo.linkedin : `https://${contactInfo.linkedin}`;
+    contactParts.push(
+      new ExternalHyperlink({
+        children: [
+          new TextRun({
+            text: contactInfo.linkedinDisplay,
+            font: FONT,
+            size: SIZE,
+            color: "0563C1",
+            underline: {},
+            style: "Hyperlink",
+          }),
+        ],
+        link,
+      })
+    );
+  }
+  if (contactInfo?.location) contactParts.push(contactInfo.location);
   if (contactParts.length > 0) {
+    // Interleave with separators
+    const children: (TextRun | ExternalHyperlink)[] = [];
+    contactParts.forEach((part, idx) => {
+      if (idx > 0) children.push(new TextRun({ text: " | ", font: FONT, size: SIZE }));
+      if (typeof part === "string") {
+        children.push(new TextRun({ text: part, font: FONT, size: SIZE }));
+      } else {
+        children.push(part);
+      }
+    });
     paragraphs.push(
       new Paragraph({
         alignment: AlignmentType.CENTER,
         spacing: { before: 0, after: 60, line: 240 },
-        children: [
-          new TextRun({ text: contactParts.join(" | "), font: FONT, size: SIZE }),
-        ],
+        children,
       })
     );
   }

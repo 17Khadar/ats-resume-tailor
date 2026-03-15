@@ -42,7 +42,7 @@ export default function Sidebar() {
       {/* Brand */}
       <div className="px-6 py-5 border-b border-slate-700/50 flex items-center justify-between">
         <div>
-          <h1 className="text-lg font-bold tracking-tight">ATS Resume Tailor</h1>
+          <h1 className="text-lg font-bold tracking-tight">JobCraft.AI</h1>
           <p className="text-xs text-slate-400 mt-0.5">AI-powered resume optimization</p>
         </div>
         {/* Close button — mobile only */}

@@ -1,5 +1,5 @@
 // ============================================================
-// ATS Resume Tailor — Core Type Definitions
+// JobCraft.AI — Core Type Definitions
 // ============================================================
 
 /** Which cloud platform the JD targets */
@@ -40,6 +40,7 @@ export interface ContactInfo {
   phone: string;
   linkedin: string;
   location: string;
+  linkedinDisplay?: string;
 }
 
 // ── Resume Sections ─────────────────────────────────────────
@@ -150,6 +151,9 @@ export interface TailorResumeResponse {
   resume: ResumeSectionOutput;
   report: ATSReport;
   contactInfo: ContactInfo;
+  warnings?: string[];
+  llmUsed: boolean;
+  generationMode: "llm" | "fallback";
 }
 
 export type ErrorCode =
@@ -158,7 +162,8 @@ export type ErrorCode =
   | "JD_RETRIEVAL_ERROR"
   | "JD_AMBIGUOUS"
   | "PARSING_ERROR"
-  | "GENERATION_ERROR";
+  | "GENERATION_ERROR"
+  | "OUTPUT_VALIDATION_FAILED";
 
 export interface ErrorResponse {
   success: false;

@@ -71,7 +71,7 @@ export const useAppSettingsStore = create<AppSettings & AppSettingsActions>()(
       resetSettings: () => set(DEFAULT_SETTINGS),
     }),
     {
-      name: "ats-resume-tailor-settings",
+      name: "career-tailor-settings",
       storage: createJSONStorage(() => localStorage),
       // Version for future migrations when schema changes
       version: 1,

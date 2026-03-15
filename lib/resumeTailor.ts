@@ -1,3 +1,23 @@
+// Strict filter: Only allow real skills/technologies in skills/additional sections
+function isValidSkillOrTech(item: string): boolean {
+  // Exclude if it looks like a job condition, requirement, or sentence fragment
+  if (!item) return false;
+  if (item.length > 60) return false;
+  if (/\b(willing to|work on-site|nice to have|interest in|privacy|security|handling sensitive data|job condition|requirement|must have|should have|responsible for|open to|compliance|legal|sentence|statement|location requirement|employer preference|soft requirement|relocate|on-site|remote|hybrid|permanent|contract|visa|authorization|eligible|background check|travel|flexible|benefit|salary|compensation|bonus|equity|stock|401k|insurance|pto|leave|holiday|policy|statement|sentence|fragment)\b/i.test(item)) return false;
+  if (/\b(year|degree|bachelor|master|phd|experience|qualification|preferred|equivalent|related field|must\s*have|ability to|familiarity|knowledge of|understanding of|including|proficiency|certification|certified)\b/i.test(item)) return false;
+  if (/\b(this role|the candidate|you will|we are looking for|responsibilities include|requirements include|as a|as an|in this position|in this role|the successful candidate|the ideal candidate|responsible for|expected to|required to|should be able to|must be able to|will be responsible for|will work|will have|will need|will require|will support|will provide|will assist|will participate|will collaborate|will contribute|will ensure|will help|will manage|will oversee|will perform|will report|will serve|will support|will work|will work with|will work on|will work in|will work closely|will work directly|will work independently|will work remotely|will work under|will work within|will work with|will work without|will work)\b/i.test(item)) return false;
+  // Exclude if it looks like a sentence (has multiple verbs or is too wordy)
+  if (/\b(is|are|was|were|be|being|been|am|has|have|had|do|does|did|will|would|shall|should|can|could|may|might|must)\b.*\b(is|are|was|were|be|being|been|am|has|have|had|do|does|did|will|would|shall|should|can|could|may|might|must)\b/i.test(item)) return false;
+  // Exclude if it contains punctuation typical of sentences
+  if (/[.!?]/.test(item)) return false;
+  // Exclude if it contains numbers and is not a known skill
+  if (/\d/.test(item) && !KNOWN_TOOLS.some((t) => t.toLowerCase() === item.toLowerCase())) return false;
+  // Allow if it matches a known tool/technology
+  if (KNOWN_TOOLS.some((t) => t.toLowerCase() === item.toLowerCase())) return true;
+  // Allow if it looks like a single word or short phrase (likely a skill)
+  if (/^[A-Za-z0-9#.+\-/ ]{2,40}$/.test(item)) return true;
+  return false;
+}
 // ============================================================
 // Resume Tailor — aggressive JD-aligned resume tailoring
 // ============================================================
@@ -138,7 +158,9 @@ function buildSkillsSection(
   cloud: CloudDetectionResult
 ): { skills: string[]; skillsAdded: string[] } {
   const masterLines = masterSkillsText.split("\n").map((l) => l.trim()).filter(Boolean);
-  const allJdKeywords = sanitizeJdKeywords([...jd.mustHaves, ...jd.preferred]);
+  let allJdKeywords = sanitizeJdKeywords([...jd.mustHaves, ...jd.preferred]);
+  // Filter out any non-skill/tech items strictly
+  allJdKeywords = allJdKeywords.filter(isValidSkillOrTech);
   const masterLower = masterSkillsText.toLowerCase();
 
   // Find skills missing from master
@@ -184,9 +206,10 @@ function buildSkillsSection(
   const skills = [...prioritized, ...rest];
 
   // Any remaining missing skills get added as a new line (directly, no hedging)
-  if (missing.length > 0) {
-    skills.push(`Additional Technologies: ${missing.join(", ")}`);
-    skillsAdded.push(...missing);
+  const validMissing = missing.filter(isValidSkillOrTech);
+  if (validMissing.length > 0) {
+    skills.push(`Additional Technologies: ${validMissing.join(", ")}`);
+    skillsAdded.push(...validMissing);
   }
 
   return { skills, skillsAdded };

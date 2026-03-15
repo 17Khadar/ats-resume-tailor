@@ -20,11 +20,23 @@ export default function ResumePreview({ resume, contactInfo }: Props) {
         {contactInfo.name && (
           <h3 className="text-xl font-bold text-gray-900">{contactInfo.name}</h3>
         )}
-        <p className="text-sm text-gray-600">
-          {[contactInfo.email, contactInfo.phone, contactInfo.linkedin, contactInfo.location]
-            .filter(Boolean)
-            .join(" | ")}
-        </p>
+        <div className="flex flex-wrap justify-center gap-x-3 gap-y-1 text-sm text-gray-600">
+          {contactInfo.email && <span>{contactInfo.email}</span>}
+          {contactInfo.phone && <span>{contactInfo.phone}</span>}
+          {contactInfo.linkedin && contactInfo.linkedinDisplay ? (
+            <span>
+              <a
+                href={contactInfo.linkedin.startsWith("http") ? contactInfo.linkedin : `https://${contactInfo.linkedin}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-blue-700 underline hover:text-blue-900"
+              >
+                {contactInfo.linkedinDisplay}
+              </a>
+            </span>
+          ) : null}
+          {contactInfo.location && <span>{contactInfo.location}</span>}
+        </div>
       </div>
 
       {/* Summary */}

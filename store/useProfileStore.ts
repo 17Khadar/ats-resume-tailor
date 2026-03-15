@@ -92,7 +92,7 @@ export const useProfileStore = create<ProfileState & ProfileActions>()(
       resetProfile: () => set(DEFAULT_PROFILE),
     }),
     {
-      name: "ats-resume-tailor-profile",
+      name: "career-tailor-profile",
       storage: createJSONStorage(() => localStorage),
       version: 1,
       // Only persist metadata — File objects are not serializable

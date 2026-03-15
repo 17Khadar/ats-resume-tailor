@@ -121,7 +121,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer className="text-center text-xs text-gray-400 py-4">
-        ATS Resume Tailor — Built for recruiter workflow optimization
+        JobCraft.AI — Built for recruiter workflow optimization
       </footer>
     </div>
   );

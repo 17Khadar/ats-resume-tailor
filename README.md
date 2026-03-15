@@ -1,4 +1,4 @@
-# ATS Resume Tailor
+# JobCraft.AI
 
 An AI-powered web application that automatically tailors your master resume to match any job description, optimizing for Applicant Tracking Systems (ATS) to maximize your chances of getting past automated screening.
 

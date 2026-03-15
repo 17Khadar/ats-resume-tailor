@@ -23,7 +23,10 @@ import { getFile } from "@/lib/localFileStore";
 import ResumeSlotSelector from "@/components/workspace/ResumeSlotSelector";
 import CustomInstructionsBox from "@/components/workspace/CustomInstructionsBox";
 import JobInputForm from "@/components/JobInputForm";
+
+import Header from "@/components/Header";
 import ResultsPanel from "@/components/ResultsPanel";
+import LLMStatus from "@/components/LLMStatus";
 import GenerationProgress from "@/components/progress/GenerationProgress";
 import TemplateSelector from "@/components/forms/TemplateSelector";
 import FormatSelector from "@/components/forms/FormatSelector";
@@ -87,6 +90,9 @@ export default function RoleWorkspaceShell({ role }: Props) {
 
   // Results (same shape as legacy flow)
   const [result, setResult] = useState<TailorResumeResponse | null>(null);
+  // LLM usage state
+  const llmUsed = result?.llmUsed ?? false;
+  const generationMode = result?.generationMode ?? "fallback";
 
   // Cleanup polling on unmount
   useEffect(() => {
@@ -165,6 +171,9 @@ export default function RoleWorkspaceShell({ role }: Props) {
           resume: data.resume,
           report: data.report,
           contactInfo: data.contactInfo,
+          warnings: data.warnings,
+          llmUsed: typeof data.llmUsed === "boolean" ? data.llmUsed : false,
+          generationMode: data.generationMode || "fallback",
         });
 
         // Clear custom instructions after successful generation
@@ -207,6 +216,9 @@ export default function RoleWorkspaceShell({ role }: Props) {
                 resume: job.result.resume,
                 report: job.result.report,
                 contactInfo: job.result.contactInfo,
+                // warnings: job.result.warnings, // Not present in backend polling result
+                llmUsed: false,
+                generationMode: "fallback",
               });
               // Clear custom instructions after successful generation
               setInstructionsDraft("");
@@ -252,24 +264,20 @@ export default function RoleWorkspaceShell({ role }: Props) {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
+  // Determine the name for the header: Settings name, then base resume name, then app name
+  let headerName = "";
+  const settingsName = globalSettings?.contact?.name?.trim();
+  const baseResumeName = result?.contactInfo?.name?.trim();
+  if (settingsName) {
+    headerName = settingsName;
+  } else if (baseResumeName) {
+    headerName = baseResumeName;
+  }
+
   return (
     <div className="min-h-screen flex flex-col">
+      <Header name={headerName} />
       <main className="flex-1 w-full">
-        {/* ── Role header ── */}
-        <div className="border-b border-gray-200 bg-white px-4 sm:px-8 py-6">
-          <div className="max-w-5xl">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl sm:text-3xl">{role.icon}</span>
-              <div>
-                <h1 className="text-xl sm:text-2xl font-bold text-gray-900">{role.label}</h1>
-                <p className="text-sm text-gray-500 mt-0.5">{role.description}</p>
-              </div>
-            </div>
-            {role.introText && (
-              <p className="text-sm text-gray-600 mt-3 max-w-3xl">{role.introText}</p>
-            )}
-          </div>
-        </div>
 
         <div className="max-w-5xl mx-auto w-full px-4 py-8 space-y-6">
           {/* ── Role-specific guidance ── */}
@@ -330,6 +338,16 @@ export default function RoleWorkspaceShell({ role }: Props) {
             hasResumes={hasResume}
           />
 
+
+          {/* ── Error display (moved above Custom Instructions) ── */}
+          {error && progressStep !== "error" && (
+            <ErrorAlert
+              message={error}
+              details={errorDetails}
+              onDismiss={() => setError(null)}
+            />
+          )}
+
           {/* ── 3. Custom Instructions ── */}
           <CustomInstructionsBox
             value={instructionsDraft}
@@ -358,14 +376,11 @@ export default function RoleWorkspaceShell({ role }: Props) {
           {/* ── Generation progress ── */}
           <GenerationProgress currentStep={progressStep} error={error} />
 
-          {/* ── Error display ── */}
-          {error && progressStep !== "error" && (
-            <ErrorAlert
-              message={error}
-              details={errorDetails}
-              onDismiss={() => setError(null)}
-            />
+          {/* ── LLM Usage/Status Section ── */}
+          {result && (
+            <LLMStatus llmUsed={llmUsed} generationMode={generationMode} />
           )}
+
 
           {/* ── Server-generated file downloads ── */}
           {serverFiles.length > 0 && (
@@ -392,7 +407,7 @@ export default function RoleWorkspaceShell({ role }: Props) {
 
       {/* Footer */}
       <footer className="text-center text-xs text-gray-400 py-4">
-        ATS Resume Tailor — {role.label}
+          JobCraft.AI — {role.label}
       </footer>
     </div>
   );

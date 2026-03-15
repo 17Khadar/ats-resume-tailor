@@ -1,3 +1,4 @@
+import { validateResumeOutput } from "@/lib/outputValidator";
 // ============================================================
 // API: /api/tailor-resume — full pipeline: resolve JD, parse,
 // detect cloud, extract master, tailor, score, return results
@@ -204,18 +205,45 @@ export async function POST(request: NextRequest) {
     if (contactOverrideRaw) {
       try {
         const override = JSON.parse(contactOverrideRaw);
-        finalContactInfo = mergeContactInfo(masterResume.contactInfo, override);
+          // If any field in override is present, use override as primary
+          const hasAnyOverride = override && Object.values(override).some(
+            v => typeof v === "string" ? v.trim() !== "" : !!v
+          );
+        if (hasAnyOverride) {
+          finalContactInfo = mergeContactInfo({ name: '', email: '', phone: '', linkedin: '', location: '' }, override);
+        } else {
+          finalContactInfo = masterResume.contactInfo;
+        }
       } catch { /* ignore malformed JSON */ }
     }
+
+    // ── Step 9: Pre-output validation/quality gate ──
+    const validation = validateResumeOutput(resume, finalContactInfo);
+    if (!validation.valid) {
+      return NextResponse.json<ErrorResponse>({
+        success: false,
+        error: `Resume output failed quality validation: ${validation.errors.join("; ")}`,
+        code: "OUTPUT_VALIDATION_FAILED",
+      }, { status: 422 });
+    }
+    // Use auto-corrected resume if available
+    const finalResume = validation.autoCorrected && validation.correctedResume ? validation.correctedResume : resume;
+
+    // Determine LLM usage for response
+    const llmUsed = isAIEnabled() && typeof aiTailorResume === "function" && typeof aiBoostResume === "function";
+    const generationMode = llmUsed ? "llm" : "fallback";
 
     const response: TailorResumeResponse = {
       success: true,
       parsedJD,
       selectedMaster,
       cloudDetection,
-      resume,
+      resume: finalResume,
       report,
       contactInfo: finalContactInfo,
+      warnings: validation.warnings,
+      llmUsed,
+      generationMode,
     };
 
     return NextResponse.json(response);

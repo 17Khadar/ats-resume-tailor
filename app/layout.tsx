@@ -3,7 +3,7 @@ import "./globals.css";
 import Sidebar from "@/components/layout/Sidebar";
 
 export const metadata: Metadata = {
-  title: "ATS Resume Tailor",
+  title: "JobCraft.AI",
   description: "Upload master resumes, provide a job description, and generate an ATS-optimized tailored resume",
 };
 
